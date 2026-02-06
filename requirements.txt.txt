@@ -1,5 +1,0 @@
-streamlit
-google-generativeai
-youtube-transcript-api
-reportlab
-yt-dlp
