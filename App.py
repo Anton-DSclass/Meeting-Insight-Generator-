@@ -10,17 +10,15 @@ from reportlab.pdfgen import canvas
 # ===============================
 # GEMINI CLIENT
 # ===============================
+import streamlit as st
 import os
 import google.generativeai as genai
 
 genai.configure(
     api_key=os.environ["GEMINI_API_KEY"]
-model = genai.GenerativeModel("gemini-2.5-flash")
-response = model.generate_content(
-    "Summarize this news in simple points"
 )
 
-print(response.text)
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 # ===============================
