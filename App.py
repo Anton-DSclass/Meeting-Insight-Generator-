@@ -202,12 +202,12 @@ Transcript:
                 with open(VIDEO_FILE, "wb") as f:
                     f.write(uploaded_file.read())
 
-        else:
-    st.warning(
-        "⚠️ Direct video analysis is not supported with the public Gemini SDK.\n\n"
-        "Please upload the video to YouTube (unlisted) and use the YouTube Link option."
-    )
-    st.stop()
+           else:
+              st.warning(
+                 "⚠️ Direct video analysis is not supported with the public Gemini SDK.\n\n"
+                 "Please upload the video to YouTube (unlisted) and use the YouTube Link option."
+              )
+              st.stop()
 
                 st.session_state.insights = response.text
 
