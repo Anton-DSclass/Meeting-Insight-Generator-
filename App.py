@@ -1,8 +1,8 @@
 import streamlit as st
+import os
 import time
 import subprocess
-
-
+from google import genai
 from youtube_transcript_api import YouTubeTranscriptApi
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -10,16 +10,7 @@ from reportlab.pdfgen import canvas
 # ===============================
 # GEMINI CLIENT
 # ===============================
-import streamlit as st
-import os
-import google.generativeai as genai
-
-genai.configure(
-    api_key=os.environ["GEMINI_API_KEY"]
-)
-
-model = genai.GenerativeModel("gemini-2.5-flash")
-
+client = genai.Client()
 
 # ===============================
 # PAGE CONFIG
@@ -46,7 +37,8 @@ for key in ["insights", "start_time"]:
 # ===============================
 # STYLES
 # ===============================
-st.markdown("""
+st.markdown(
+    """
 <style>
 .stApp { background: linear-gradient(135deg, #e3f2fd, #f8fbff); }
 
@@ -91,7 +83,9 @@ st.markdown("""
     padding: 10px 28px;
 }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True
+)
 
 # ===============================
 # TITLE
@@ -103,20 +97,14 @@ st.caption("⚡ Gemini AI | YouTube & Video Upload Supported")
 # ===============================
 # HELPER FUNCTIONS
 # ===============================
-
-def is_youtube_url(url):
-    return url and ("youtube.com" in url or "youtu.be" in url)
-
 def get_youtube_transcript(url):
     video_id = url.split("v=")[-1].split("&")[0]
     transcript = YouTubeTranscriptApi.get_transcript(video_id)
-    return " ".join([t["text"] for t in transcript])
+    return " ".join(t["text"] for t in transcript)
 
 def download_youtube_video(url):
     subprocess.run(
         ["yt-dlp", "-f", "mp4", "-o", VIDEO_FILE, url],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
         check=True
     )
 
@@ -138,16 +126,14 @@ def upload_video(file_path, status):
 left, right = st.columns([1, 2])
 
 # ===============================
-# INPUT SECTION
+# INPUT
 # ===============================
 with left:
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
     option = st.radio("Choose input source", ["YouTube Link", "Upload Video"])
-
     youtube_url = st.text_input("🔗 YouTube URL") if option == "YouTube Link" else None
     uploaded_file = st.file_uploader("📁 Upload Video", type=["mp4", "mkv", "mov"]) if option == "Upload Video" else None
-
     generate = st.button("🚀 Generate Insights")
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -157,33 +143,24 @@ with left:
 # ===============================
 if generate:
     try:
-    transcript = get_youtube_transcript(youtube_url)
+        with st.status("⏳ Processing video...", expanded=True) as status:
 
-    response = model.generate_content(
-        f"""
-Generate:
-1. Short summary
-2. Topic-wise insights
-3. Actionable takeaways
+            if option == "YouTube Link":
+                try:
+                    status.write("📝 Fetching transcript")
+                    transcript = get_youtube_transcript(youtube_url)
 
-Transcript:
-{transcript}
-"""
-    )
-    st.session_state.insights = response.text
+                    prompt = (
+                        "Generate:\n"
+                        "1. Short summary\n"
+                        "2. Topic-wise insights\n"
+                        "3. Actionable takeaways\n\n"
+                        f"Transcript:\n{transcript}"
+                    )
 
-except:
-    st.error("Transcript not available for this video ❌")
-
-Generate:
-1. Short summary
-2. Topic-wise insights
-3. Actionable takeaways
-
-Transcript:
-{transcript}
-"""
-                        ]
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=[prompt]
                     )
                     st.session_state.insights = response.text
 
@@ -193,14 +170,12 @@ Transcript:
 
                     file_info = upload_video(VIDEO_FILE, status)
 
-                    status.write("🎥 Gemini analysing video")
                     response = client.models.generate_content(
                         model="gemini-2.5-flash",
                         contents=[file_info, "Generate summary, insights and takeaways"]
                     )
                     st.session_state.insights = response.text
 
-            # ---------- LOCAL VIDEO ----------
             else:
                 if uploaded_file is None:
                     st.error("Please upload a video")
