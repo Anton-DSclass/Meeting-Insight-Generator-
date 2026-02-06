@@ -51,7 +51,7 @@ st.markdown("""
     background: linear-gradient(100deg,#0020ff,#00c6ff);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-top: -100px;
+  
 }
 
 .hr-line {
