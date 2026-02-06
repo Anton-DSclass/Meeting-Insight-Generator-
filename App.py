@@ -1,8 +1,8 @@
 import streamlit as st
-import os
 import time
 import subprocess
-from google import genai
+
+
 from youtube_transcript_api import YouTubeTranscriptApi
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -10,7 +10,18 @@ from reportlab.pdfgen import canvas
 # ===============================
 # GEMINI CLIENT
 # ===============================
-client = genai.Client()
+import os
+import google.generativeai as genai
+
+genai.configure(
+    api_key=os.environ["GEMINI_API_KEY"]
+model = genai.GenerativeModel("gemini-2.5-flash")
+response = model.generate_content(
+    "Summarize this news in simple points"
+)
+
+print(response.text)
+
 
 # ===============================
 # PAGE CONFIG
