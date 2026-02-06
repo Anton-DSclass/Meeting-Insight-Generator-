@@ -8,9 +8,15 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 # ===============================
-# GEMINI CONFIG (STABLE)
+# GEMINI CONFIG (CLOUD SAFE)
 # ===============================
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+API_KEY = os.getenv("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+
+if not API_KEY:
+    st.error("❌ GEMINI_API_KEY not found. Add it in Streamlit → Settings → Secrets")
+    st.stop()
+
+genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel("gemini-2.5-flash")
 
 # ===============================
@@ -84,7 +90,7 @@ st.markdown(
 # ===============================
 st.markdown('<div class="big-title">AI Video Insight Generator</div>', unsafe_allow_html=True)
 st.markdown('<div class="hr-line"></div>', unsafe_allow_html=True)
-st.caption("⚡ Gemini AI | YouTube Supported")
+st.caption("⚡ Gemini AI | YouTube Transcript Based")
 
 # ===============================
 # HELPER FUNCTIONS
@@ -94,19 +100,13 @@ def get_youtube_transcript(url):
     transcript = YouTubeTranscriptApi.get_transcript(video_id)
     return " ".join(t["text"] for t in transcript)
 
-def download_youtube_video(url):
-    subprocess.run(
-        ["yt-dlp", "-f", "mp4", "-o", VIDEO_FILE, url],
-        check=True
-    )
-
-def generate_insights_from_text(text):
+def generate_insights(text):
     prompt = (
         "Generate:\n"
         "1. Short summary\n"
         "2. Topic-wise insights\n"
         "3. Actionable takeaways\n\n"
-        f"Content:\n{text}"
+        f"Transcript:\n{text}"
     )
     response = model.generate_content(prompt)
     return response.text
@@ -117,7 +117,7 @@ def generate_insights_from_text(text):
 left, right = st.columns([1, 2])
 
 # ===============================
-# INPUT
+# INPUT SECTION
 # ===============================
 with left:
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -125,6 +125,7 @@ with left:
     option = st.radio("Choose input source", ["YouTube Link", "Upload Video"])
     youtube_url = st.text_input("🔗 YouTube URL") if option == "YouTube Link" else None
     uploaded_file = st.file_uploader("📁 Upload Video", type=["mp4", "mkv", "mov"]) if option == "Upload Video" else None
+
     generate = st.button("🚀 Generate Insights")
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -137,31 +138,31 @@ if generate:
         with st.status("⏳ Processing...", expanded=True):
 
             if option == "YouTube Link":
+                if not youtube_url:
+                    st.error("Please enter a YouTube URL")
+                    st.stop()
+
                 st.write("📝 Fetching transcript...")
                 transcript = get_youtube_transcript(youtube_url)
 
-                st.write("🤖 Generating insights...")
-                st.session_state.insights = generate_insights_from_text(transcript)
+                st.write("🤖 Generating AI insights...")
+                st.session_state.insights = generate_insights(transcript)
 
             else:
-                if uploaded_file is None:
-                    st.error("Please upload a video")
-                    st.stop()
-
                 st.warning(
-                    "⚠️ Gemini stable SDK does NOT support direct video analysis.\n\n"
-                    "Please upload a YouTube link with captions."
+                    "⚠️ Direct video analysis is NOT supported in Gemini stable SDK.\n\n"
+                    "Please use a YouTube link with captions."
                 )
                 st.stop()
 
-        st.success("✅ Completed")
+        st.success("✅ Done")
         st.balloons()
 
     except Exception as e:
         st.error(str(e))
 
 # ===============================
-# OUTPUT
+# OUTPUT SECTION
 # ===============================
 with right:
     if st.session_state.insights:
