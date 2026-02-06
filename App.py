@@ -2,15 +2,16 @@ import streamlit as st
 import os
 import time
 import subprocess
-from google import genai
+import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 # ===============================
-# GEMINI CLIENT
+# GEMINI CONFIG (STABLE)
 # ===============================
-client = genai.Client()
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 # ===============================
 # PAGE CONFIG
@@ -30,9 +31,8 @@ PDF_FILE = "AI_Video_Insights.pdf"
 # ===============================
 # SESSION STATE
 # ===============================
-for key in ["insights", "start_time"]:
-    if key not in st.session_state:
-        st.session_state[key] = ""
+if "insights" not in st.session_state:
+    st.session_state.insights = ""
 
 # ===============================
 # STYLES
@@ -74,14 +74,6 @@ st.markdown(
     border-radius: 24px;
     box-shadow: 0 10px 24px rgba(0,102,255,0.2);
 }
-
-.stButton>button {
-    background: linear-gradient(90deg,#0072ff,#00c6ff);
-    color: black;
-    font-size: 18px;
-    border-radius: 40px;
-    padding: 10px 28px;
-}
 </style>
 """,
     unsafe_allow_html=True
@@ -92,7 +84,7 @@ st.markdown(
 # ===============================
 st.markdown('<div class="big-title">AI Video Insight Generator</div>', unsafe_allow_html=True)
 st.markdown('<div class="hr-line"></div>', unsafe_allow_html=True)
-st.caption("⚡ Gemini AI | YouTube & Video Upload Supported")
+st.caption("⚡ Gemini AI | YouTube Supported")
 
 # ===============================
 # HELPER FUNCTIONS
@@ -108,17 +100,16 @@ def download_youtube_video(url):
         check=True
     )
 
-def upload_video(file_path, status):
-    status.write("⬆️ Uploading video to Gemini")
-    video_file = client.files.upload(file=file_path)
-
-    while True:
-        file_info = client.files.get(name=video_file.name)
-        if file_info.state.name == "ACTIVE":
-            break
-        time.sleep(3)
-
-    return file_info
+def generate_insights_from_text(text):
+    prompt = (
+        "Generate:\n"
+        "1. Short summary\n"
+        "2. Topic-wise insights\n"
+        "3. Actionable takeaways\n\n"
+        f"Content:\n{text}"
+    )
+    response = model.generate_content(prompt)
+    return response.text
 
 # ===============================
 # LAYOUT
@@ -143,57 +134,28 @@ with left:
 # ===============================
 if generate:
     try:
-        with st.status("⏳ Processing video...", expanded=True) as status:
+        with st.status("⏳ Processing...", expanded=True):
 
             if option == "YouTube Link":
-                try:
-                    status.write("📝 Fetching transcript")
-                    transcript = get_youtube_transcript(youtube_url)
+                st.write("📝 Fetching transcript...")
+                transcript = get_youtube_transcript(youtube_url)
 
-                    prompt = (
-                        "Generate:\n"
-                        "1. Short summary\n"
-                        "2. Topic-wise insights\n"
-                        "3. Actionable takeaways\n\n"
-                        f"Transcript:\n{transcript}"
-                    )
-
-                    response = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=[prompt]
-                    )
-                    st.session_state.insights = response.text
-
-                except:
-                    status.write("⬇️ Transcript failed, downloading video")
-                    download_youtube_video(youtube_url)
-
-                    file_info = upload_video(VIDEO_FILE, status)
-
-                    response = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=[file_info, "Generate summary, insights and takeaways"]
-                    )
-                    st.session_state.insights = response.text
+                st.write("🤖 Generating insights...")
+                st.session_state.insights = generate_insights_from_text(transcript)
 
             else:
                 if uploaded_file is None:
                     st.error("Please upload a video")
                     st.stop()
 
-                with open(VIDEO_FILE, "wb") as f:
-                    f.write(uploaded_file.read())
-
-                file_info = upload_video(VIDEO_FILE, status)
-
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=[file_info, "Generate summary, insights and takeaways"]
+                st.warning(
+                    "⚠️ Gemini stable SDK does NOT support direct video analysis.\n\n"
+                    "Please upload a YouTube link with captions."
                 )
-                st.session_state.insights = response.text
+                st.stop()
 
-            status.update(label="✅ Processing completed", state="complete")
-            st.balloons()
+        st.success("✅ Completed")
+        st.balloons()
 
     except Exception as e:
         st.error(str(e))
@@ -202,10 +164,6 @@ if generate:
 # OUTPUT
 # ===============================
 with right:
-    if os.path.exists(VIDEO_FILE):
-        st.subheader("🎬 Video Preview")
-        st.video(VIDEO_FILE)
-
     if st.session_state.insights:
         st.markdown('<div class="card insight-card">', unsafe_allow_html=True)
         st.subheader("🎯 AI Insights")
@@ -223,6 +181,10 @@ with right:
             c.save()
 
             with open(PDF_FILE, "rb") as f:
-                st.download_button("⬇️ Download PDF", f, file_name=PDF_FILE)
+                st.download_button(
+                    "⬇️ Download PDF",
+                    f,
+                    file_name=PDF_FILE
+                )
 
         st.markdown('</div>', unsafe_allow_html=True)
