@@ -157,19 +157,24 @@ with left:
 # ===============================
 if generate:
     try:
-        with st.status("⏳ Processing video...", expanded=True) as status:
-            st.session_state.start_time = time.time()
+    transcript = get_youtube_transcript(youtube_url)
 
-            # ---------- YOUTUBE ----------
-            if option == "YouTube Link":
-                try:
-                    status.write("📝 Fetching transcript")
-                    transcript = get_youtube_transcript(youtube_url)
+    response = model.generate_content(
+        f"""
+Generate:
+1. Short summary
+2. Topic-wise insights
+3. Actionable takeaways
 
-                    response = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=[
-                            f"""
+Transcript:
+{transcript}
+"""
+    )
+    st.session_state.insights = response.text
+
+except:
+    st.error("Transcript not available for this video ❌")
+
 Generate:
 1. Short summary
 2. Topic-wise insights
