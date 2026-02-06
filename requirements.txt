@@ -1,4 +1,5 @@
 streamlit
 google-generativeai
 youtube-transcript-api
+yt-dlp
 reportlab
