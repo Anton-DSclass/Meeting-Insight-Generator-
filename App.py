@@ -202,13 +202,13 @@ Transcript:
                 with open(VIDEO_FILE, "wb") as f:
                     f.write(uploaded_file.read())
 
-                file_info = upload_and_wait(VIDEO_FILE, status)
-                tick("🎥 Gemini analysing video")
+        else:
+    st.warning(
+        "⚠️ Direct video analysis is not supported with the public Gemini SDK.\n\n"
+        "Please upload the video to YouTube (unlisted) and use the YouTube Link option."
+    )
+    st.stop()
 
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=[file_info, "Generate summary, insights and takeaways"]
-                )
                 st.session_state.insights = response.text
 
             status.update(label="✅ Processing completed", state="complete")
