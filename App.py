@@ -2,17 +2,17 @@ import streamlit as st
 import os
 import time
 import subprocess
-from google import genai  # This is correct AFTER pip install google-genai
+from google import genai
 from youtube_transcript_api import YouTubeTranscriptApi
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 # ===============================
-# GEMINI CLIENT – must have api_key in 2025/2026 SDK
+# GEMINI CLIENT
 # ===============================
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("GEMINI_API_KEY environment variable is missing. Set it in Streamlit Cloud secrets.")
+    st.error("GEMINI_API_KEY is missing! Add it in Streamlit Cloud → Settings → Secrets & vars → Secrets.")
     st.stop()
 
 client = genai.Client(api_key=api_key)
@@ -40,7 +40,7 @@ for key in ["insights", "start_time"]:
         st.session_state[key] = ""
 
 # ===============================
-# STYLES (unchanged)
+# STYLES
 # ===============================
 st.markdown("""
 <style>
@@ -89,70 +89,83 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Title and caption (unchanged)
+# ===============================
+# TITLE
+# ===============================
 st.markdown('<div class="big-title">AI Video Insight Generator</div>', unsafe_allow_html=True)
 st.markdown('<div class="hr-line"></div>', unsafe_allow_html=True)
 st.caption("⚡ Gemini AI | YouTube & Video Upload Supported")
 
-# Helper functions (unchanged except minor safety)
+# ===============================
+# HELPER FUNCTIONS
+# ===============================
+
 def is_youtube_url(url):
     return url and ("youtube.com" in url or "youtu.be" in url)
 
 def get_youtube_transcript(url):
-    try:
-        video_id = url.split("v=")[-1].split("&")[0]
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        return " ".join([t["text"] for t in transcript])
-    except Exception as e:
-        raise Exception(f"Transcript error: {e}")
+    video_id = url.split("v=")[-1].split("&")[0]
+    transcript = YouTubeTranscriptApi.get_transcript(video_id)
+    return " ".join([t["text"] for t in transcript])
 
 def download_youtube_video(url):
     subprocess.run(
-        ["yt-dlp", "-f", "mp4", "-o", VIDEO_FILE, "--quiet", url],
+        ["yt-dlp", "-f", "mp4", "-o", VIDEO_FILE, url],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         check=True
     )
 
 def upload_video(file_path, status):
-    status.write("⬆️ Uploading video to Gemini...")
+    status.write("⬆️ Uploading video to Gemini")
     video_file = client.files.upload(file=file_path)
 
-    for _ in range(20):  # timeout protection
+    while True:
         file_info = client.files.get(name=video_file.name)
         if file_info.state.name == "ACTIVE":
-            return file_info
-        time.sleep(4)
-    raise Exception("Video file did not become ACTIVE in time")
+            break
+        time.sleep(3)
 
-# Layout
+    return file_info
+
+# ===============================
+# LAYOUT
+# ===============================
 left, right = st.columns([1, 2])
 
+# ===============================
+# INPUT SECTION
+# ===============================
 with left:
     st.markdown('<div class="card">', unsafe_allow_html=True)
+
     option = st.radio("Choose input source", ["YouTube Link", "Upload Video"])
-    youtube_url = st.text_input("🔗 YouTube URL") if option == "YouTube Link" else ""
+
+    youtube_url = st.text_input("🔗 YouTube URL") if option == "YouTube Link" else None
     uploaded_file = st.file_uploader("📁 Upload Video", type=["mp4", "mkv", "mov"]) if option == "Upload Video" else None
+
     generate = st.button("🚀 Generate Insights")
+
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Processing
+# ===============================
+# PROCESSING
+# ===============================
 if generate:
     try:
         with st.status("⏳ Processing video...", expanded=True) as status:
             st.session_state.start_time = time.time()
 
+            # ---------- YOUTUBE ----------
             if option == "YouTube Link":
-                if not youtube_url:
-                    st.error("Please enter a YouTube URL")
-                    st.stop()
-
                 try:
-                    status.write("📝 Fetching transcript...")
+                    status.write("📝 Fetching transcript")
                     transcript = get_youtube_transcript(youtube_url)
 
-                    status.write("🤖 Generating insights from transcript...")
                     response = client.models.generate_content(
                         model="gemini-2.5-flash",
-                        contents=f"""
+                        contents=[
+                            f"""
 Generate:
 1. Short summary
 2. Topic-wise insights
@@ -161,72 +174,71 @@ Generate:
 Transcript:
 {transcript}
 """
+                        ]
                     )
                     st.session_state.insights = response.text
 
-                except Exception as transcript_err:
-                    status.write(f"Transcript failed ({transcript_err}) → falling back to video download")
+                except:
+                    status.write("⬇️ Transcript failed, downloading video")
                     download_youtube_video(youtube_url)
+
                     file_info = upload_video(VIDEO_FILE, status)
-                    status.write("🎥 Analyzing full video...")
+
+                    status.write("🎥 Gemini analysing video")
                     response = client.models.generate_content(
                         model="gemini-2.5-flash",
-                        contents=[file_info, "Generate summary, insights and actionable takeaways from this video."]
+                        contents=[file_info, "Generate summary, insights and takeaways"]
                     )
                     st.session_state.insights = response.text
 
-            else:  # Upload Video
+            # ---------- LOCAL VIDEO ----------
+            else:
                 if uploaded_file is None:
-                    st.error("Please upload a video file")
+                    st.error("Please upload a video")
                     st.stop()
 
-                status.write("💾 Saving uploaded video...")
                 with open(VIDEO_FILE, "wb") as f:
-                    f.write(uploaded_file.getvalue())
+                    f.write(uploaded_file.read())
 
                 file_info = upload_video(VIDEO_FILE, status)
 
-                status.write("🎥 Analyzing uploaded video...")
                 response = client.models.generate_content(
                     model="gemini-2.5-flash",
-                    contents=[file_info, "Generate summary, insights and actionable takeaways from this video."]
+                    contents=[file_info, "Generate summary, insights and takeaways"]
                 )
                 st.session_state.insights = response.text
 
-            status.update(label="✅ Done!", state="complete")
+            status.update(label="✅ Processing completed", state="complete")
             st.balloons()
 
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.error(str(e))
 
-# Output
+# ===============================
+# OUTPUT
+# ===============================
 with right:
     if os.path.exists(VIDEO_FILE):
         st.subheader("🎬 Video Preview")
         st.video(VIDEO_FILE)
 
-    if st.session_state.get("insights"):
+    if st.session_state.insights:
         st.markdown('<div class="card insight-card">', unsafe_allow_html=True)
         st.subheader("🎯 AI Insights")
         st.markdown(st.session_state.insights)
 
-        if st.button("📄 Download as PDF"):
+        if st.button("📄 Download PDF"):
             c = canvas.Canvas(PDF_FILE, pagesize=A4)
             y = 800
             for line in st.session_state.insights.split("\n"):
-                if y < 60:
+                if y < 50:
                     c.showPage()
                     y = 800
-                c.drawString(40, y, line.strip()[:95])  # safer width
-                y -= 15
+                c.drawString(40, y, line[:100])
+                y -= 16
             c.save()
 
-            with open(PDF_FILE, "rb") as pdf_file:
-                st.download_button(
-                    label="⬇️ Download PDF",
-                    data=pdf_file,
-                    file_name=PDF_FILE,
-                    mime="application/pdf"
-                )
+            with open(PDF_FILE, "rb") as f:
+                st.download_button("⬇️ Download PDF", f, file_name=PDF_FILE)
 
         st.markdown('</div>', unsafe_allow_html=True)
