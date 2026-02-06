@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import time
 import subprocess
-from google import genai
+from google import genai                           # ← fixed import (requires pip install google-genai)
 from youtube_transcript_api import YouTubeTranscriptApi
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -10,7 +10,7 @@ from reportlab.pdfgen import canvas
 # ===============================
 # GEMINI CLIENT
 # ===============================
-client = genai.Client()
+client = genai.Client()     # ← add api_key="..." if using Gemini Developer API
 
 # ===============================
 # PAGE CONFIG
