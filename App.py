@@ -12,7 +12,7 @@ from reportlab.pdfgen import canvas
 # ===============================
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("GEMINI_API_KEY is missing! Add it in Streamlit Cloud → Settings → Secrets & vars → Secrets.")
+    st.error("GEMINI_API_KEY environment variable is not set. Please add it in Streamlit Cloud → Settings → Secrets.")
     st.stop()
 
 client = genai.Client(api_key=api_key)
