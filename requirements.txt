@@ -3,3 +3,6 @@ google-generativeai
 youtube-transcript-api
 reportlab
 yt-dlp
+google-generativeai==0.3.2
+
+
