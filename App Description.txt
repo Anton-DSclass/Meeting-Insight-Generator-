@@ -1,0 +1,66 @@
+🧠 AI Video Insight Generator – Description
+
+AI Video Insight Generator is a smart application that converts long videos or YouTube content into clear,
+structured insights using Google Gemini AI.
+
+Users can provide either a YouTube link or upload a video file.
+The system extracts the spoken content (via transcript or AI video understanding) and automatically generates:
+✅ Short summary
+✅ Topic-wise key insights
+✅ Actionable takeaways
+This helps users understand
+
+-------------------------------------------------------------------------------
+⚙️ How the App Works (Workflow)
+Input
+
+User gives:
+a YouTube URL OR
+uploads a video file
+-------------------------------------------------------------------------------
+Text Extraction
+
+If YouTube:
+App tries to fetch the official transcript.
+If transcript not available:
+Video processing / AI understanding is used (local mode).
+If uploaded file:
+Video is prepared for Gemini analysis.
+---------------------------------------------------------------------------------
+AI Processing
+
+Google Gemini 2.5 Flash model:
+reads transcript / video
+understands context
+identifies topics
+extracts key points
+produces structured output
+-----------------------------------------------------------------------------------
+Output Generated
+
+The AI returns:
+
+📌 Quick summary
+📌 Topic-by-topic explanation
+📌 Useful insights
+📌 Practical action items
+---------------------------------------------------------------------------------------
+Extra Features
+
+✨ Video preview
+✨ PDF download
+✨ Clean dashboard UI
+✨ Fast processing
+✨ Works in browser
+✨ Secure API key via secrets
+----------------------------------------------------------------------------------------
+Purpose of the Application
+     This tool is useful for:
+     Students understanding lectures
+     Professionals reviewing meetings
+     Researchers analyzing discussions
+     News watchers
+     Content creators
+     Anyone who wants fast knowledge from long videos
+-----------------------------------------------------------------------------------------
+https://meeting-insight-generator-git-u9naam9qrwsswnadoittuw.streamlit.app/  # application link
